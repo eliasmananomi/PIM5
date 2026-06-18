@@ -7,6 +7,7 @@ from sklearn.pipeline import Pipeline
 from sklearn.impute import SimpleImputer
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
 
 # cargar los datos
 df = cargarDatos()
@@ -31,10 +32,10 @@ print(cat_features)
 
 # Paso 3: Crear pipelines para cada ruta
 ## Ruta 1: numéricas
-num_transformer =  Pipeline(steps=[
-    ('inputer', SimpleImputer(strategy='mean'))
-]
-)
+num_transformer = Pipeline(steps=[
+    ('inputer', SimpleImputer(strategy='mean')),
+    ('scaler', StandardScaler()) # <-- Esto ajusta las escalas numéricas
+])
 
 ## Ruta 2: categóricas
 cat_transformer = Pipeline(steps=[
@@ -74,26 +75,44 @@ print(X_test_processed.shape)
 
 # Paso 8: construimos una función para "exportar": ft_engineering()
 def ft_engineering():
-    num_features = X.select_dtypes('number').columns
-    cat_features = X.select_dtypes('object').columns
+    """
+    Carga los datos, ejecuta el pipeline de preprocesamiento completo
+    y retorna los conjuntos listos para el entrenamiento.
+    """
+    df_local = cargarDatos()
+    
+    X_local = df_local.drop('Pago_atiempo', axis=1)
+    y_local = df_local['Pago_atiempo']
+    
+    num_cols = X_local.select_dtypes('number').columns
+    cat_cols = X_local.select_dtypes('object').columns
 
-    num_transformer =  Pipeline(steps=[
-    ('inputer', SimpleImputer(strategy='mean'))
-    ]
+    # 1. Definimos la ruta numérica con el ESCALADOR también aquí dentro
+    num_step = Pipeline(steps=[
+        ('inputer', SimpleImputer(strategy='mean')),
+        ('scaler', StandardScaler())  # <-- ¡Esto faltaba agregar aquí dentro!
+    ])
+
+    # 2. Definimos la ruta categórica
+    cat_step = Pipeline(steps=[
+        ('to_str', FunctionTransformer(lambda x: x.astype(str))),
+        ('inputer', SimpleImputer(strategy='most_frequent')),
+        ('onehot', OneHotEncoder(handle_unknown='ignore', sparse_output=False))
+    ])
+
+    # 3. Combinamos usando las variables locales correctas
+    prep = ColumnTransformer(transformers=[
+        ('num', num_step, num_cols),
+        ('cat', cat_step, cat_cols)
+    ])
+
+    # 4. Dividimos los datos
+    X_tr, X_te, y_tr, y_te = train_test_split(
+        X_local, y_local, test_size=0.2, random_state=42, stratify=y_local
     )
 
-    cat_transformer = Pipeline(steps=[
-    ('to_str', FunctionTransformer(lambda x: x.astype(str))),
-    ('inputer', SimpleImputer(strategy='most_frequent')),
-    ('onehot', OneHotEncoder(handle_unknown='ignore', sparse_output=False))
-    ]
-    )
-
-    preprocessor = ColumnTransformer(
-    transformers=[
-        ('num', num_transformer, num_features),
-        ('cat', cat_transformer, cat_features)
-    ]
-    )
-
-    return preprocessor
+    # 5. Aplicamos el preprocesador corregido
+    X_train_processed = prep.fit_transform(X_tr)
+    X_test_processed = prep.transform(X_te)
+    
+    return X_train_processed, X_test_processed, y_tr, y_te
