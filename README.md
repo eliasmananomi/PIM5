@@ -25,7 +25,10 @@ PIM5/
 ├── comparacion_modelos.png
 ├── requirements.txt
 └── README.md
-Dataset
+```
+
+## Dataset
+
 El archivo utilizado es Base_de_datos.xlsx.
 La variable objetivo es:
 Pago_atiempo
@@ -99,7 +102,7 @@ Jensen-Shannon divergence.
 Chi-cuadrado para variables categóricas.
 Estas métricas permiten identificar si la distribución de las variables actuales cambió respecto a la población histórica.
 
-Aplicación en Streamlit
+## Aplicación en Streamlit
 Para ejecutar la aplicación:
 python -m streamlit run .\src\model_monitoring.py
 La aplicación se abre localmente en:
@@ -120,19 +123,36 @@ plotly
 scipy
 openpyxl
 
-Hallazgos principales
+## Hallazgos principales
 Durante el desarrollo se observó que los modelos alcanzan métricas muy altas. Esto puede indicar que el dataset es altamente separable, aunque también requiere precaución porque podría existir fuga de información.
+
+![Comparación de Modelos](comparacion_modelos.png)
 
 En el monitoreo de drift se comparó una población histórica con una población actual y se identificaron variables con diferentes niveles de riesgo. En particular, la aplicación permite detectar variables con drift alto para recomendar revisión de datos, análisis de estabilidad o posible reentrenamiento del modelo.
 
-Observaciones importantes
+## Observaciones importantes
 Las métricas perfectas del modelo deben interpretarse con cautela, ya que pueden indicar un dataset altamente separable o posible fuga de información.
 El monitoreo de data drift no reemplaza la evaluación del modelo, sino que complementa el ciclo de machine learning permitiendo detectar cambios en los datos que podrían afectar el rendimiento futuro.
 
-Próximos pasos
-Revisar posible fuga de información.
-Analizar con mayor detalle las variables con drift alto.
-Guardar el modelo entrenado con joblib o pickle.
-Automatizar el monitoreo por períodos.
-Incorporar nuevas muestras reales o simuladas.
-Evaluar reentrenamiento si se detecta drift sostenido.
+## Métricas Atípicas T
+anto Random Forest como Gradient Boosting alcanzaron un rendimiento del 100% ($1.0$ de F1-Score) en el conjunto de testeo, mientras que la Regresión Logística se situó en un $0.999$.
+En condiciones reales, una precisión perfecta en múltiples modelos complejos suele ser un síntoma inequívoco de Data Leakage. Es altamente probable que el proceso de ingeniería de características (ft_engineering.py) esté incluyendo alguna variable predictora que contiene información directa o indirecta del resultado final del target (Pago_atiempo).
+
+Un aspecto a tener en cuenta es la distribución del Target, el dataset presenta un severo desbalance de clases, donde aproximadamente el 95.2% de las observaciones corresponden a clientes que pagaron a tiempo (Pago Atiempo: 2051 casos en test) frente a un escaso 4.8% de clientes morosos (No Pago: 102 casos en test).Impacto en la Evaluación: Aunque las matrices de confusión muestran que los modelos clasifican correctamente la clase minoritaria sin falsos positivos ni falsos negativos, la asimetría de los datos exige un monitoreo constante mediante métricas de precisión-recall, evitando guiarse únicamente por el Accuracy general.
+
+#### Matrices de Confusión por Modelo:
+| Logistic Regression | Random Forest | Gradient Boosting |
+| :---: | :---: | :---: |
+| ![CM Logistic Regression](matriz_confusion_logistic_regression.png) | ![CM Random Forest](matriz_confusion_random_forest.png) | ![CM Gradient Boosting](matriz_confusion_gradient_boosting.png) |
+
+## Independencia Lineal Certificada
+
+![Matriz de Correlación](matriz_correlacion_multicolinealidad.png)
+
+El análisis previo mediante la matriz de correlación de Pearson y el Factor de Inflación de la Varianza (VIF) confirmó que no existen problemas de multicolinealidad severa (todas las variables se mantuvieron con un $\text{VIF} < 5$ y correlaciones lineales $< 0.80$).
+Al observar el mapa de calor generado (matriz_correlacion_multicolinealidad.png), se identifican agrupaciones lógicas de correlación moderada que son sanas para el modelo, tales como:
+
+    cuota_pactada con capital_prestado.
+    salario_cliente con total_otros_prestamos.
+    Los distintos tipos de saldos entre sí (saldo_total y saldo_principal).
+
