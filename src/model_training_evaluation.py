@@ -3,10 +3,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
-from sklearn.linear_model import LogisticRegression, LinearRegression
+from sklearn.linear_model import LinearRegression, LogisticRegression
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
-
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix, ConfusionMatrixDisplay
 from cargar_datos import cargarDatos
 from ft_engineering import ft_engineering
 
@@ -135,6 +134,23 @@ if __name__ == '__main__':
         modelo_entrenado = build_model(modelo_base, X_train, y_train)
         metricas, preds = summarize_classification(modelo_entrenado, X_test, y_test)
         resultados[nombre] = metricas
+        
+        # --- NUEVO: Generación y guardado de la Matriz de Confusión ---
+        cm = confusion_matrix(y_test, preds)
+        
+        plt.figure(figsize=(6, 5))
+        disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=['No Pago', 'Pago Atiempo']) # Ajusta las etiquetas según tu target
+        disp.plot(cmap='Blues', ax=plt.gca(), values_format='d')
+        
+        plt.title(f'Matriz de Confusión - {nombre}')
+        plt.tight_layout()
+        
+        # Reemplazamos espacios por guiones bajos para el nombre del archivo
+        nombre_archivo_cm = f"matriz_confusion_{nombre.lower().replace(' ', '_')}.png"
+        plt.savefig(nombre_archivo_cm)
+        plt.close() # Cerramos la figura para liberar memoria y evitar que se mezclen los gráficos
+        print(f"Matriz de confusión para {nombre} guardada como '{nombre_archivo_cm}'")
+        # --------------------------------------------------------------
 
     df_resumen = pd.DataFrame(resultados).T
 
