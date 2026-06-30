@@ -8,6 +8,7 @@ from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix, ConfusionMatrixDisplay
 from cargar_datos import cargarDatos
 from ft_engineering import ft_engineering
+from sklearn.impute import SimpleImputer
 
 
 def build_model(model_obj, X_train, y_train):
@@ -188,3 +189,77 @@ if __name__ == '__main__':
     plt.savefig('comparacion_modelos.png')
     print("\nGrafico comparativo guardado como 'comparacion_modelos.png'")
     plt.show()
+
+    import os
+import pickle
+
+# ... (código existente donde termina el bucle de entrenamiento)
+
+# Buscamos el modelo Random Forest entrenado dentro del diccionario o proceso
+# Como tu diccionario usa 'Random Forest' de clave, lo extraemos e indicamos la ruta:
+import os
+
+# --- BLOQUE DE EXPORTACIÓN DEL PIPELINE 100% BLINDADO ---
+import os
+import pickle
+from sklearn.pipeline import Pipeline
+from sklearn.compose import ColumnTransformer
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
+from sklearn.impute import SimpleImputer
+
+print("\nConfigurando Pipeline automatizado para la API...")
+
+# 1. Obtener los datos crudos completos
+from cargar_datos import cargarDatos
+df_completo = cargarDatos()
+X_crudo_full = df_completo.drop(columns=['Pago_atiempo', 'fecha_prestamo'], errors='ignore')
+y_crudo_full = df_completo['Pago_atiempo']
+
+# 2. FORZAMOS MANUALMENTE QUÉ COLUMNAS SON TEXTO (Sin dejar que Pandas adivine)
+columnas_texto_api = ['tipo_laboral', 'tendencia_ingresos']
+
+for col in columnas_texto_api:
+    X_crudo_full[col] = X_crudo_full[col].astype(str)
+
+# 3. El resto son numéricas
+numeric_features = [col for col in X_crudo_full.columns if col not in columnas_texto_api]
+categorical_features = columnas_texto_api
+
+# 4. Pipelines específicos (ahora el categorico usa un imputer nativo)
+numeric_transformer = Pipeline(steps=[
+    ("imputer", SimpleImputer(strategy="median")),
+    ("scaler", StandardScaler())
+])
+
+categorical_transformer = Pipeline(steps=[
+    ("imputer", SimpleImputer(strategy="constant", fill_value="Desconocido")),
+    ("onehot", OneHotEncoder(handle_unknown="ignore", sparse_output=False))
+])
+
+# 5. Ensamblar preprocesador
+preprocesador_api = ColumnTransformer(
+    transformers=[
+        ("num", numeric_transformer, numeric_features),
+        ("cat", categorical_transformer, categorical_features)
+    ]
+)
+
+# 6. Pipeline final
+pipeline_produccion = Pipeline(steps=[
+    ('preprocessor', preprocesador_api),
+    ('classifier', RandomForestClassifier(random_state=42))
+])
+
+# 7. Entrenar y guardar usando RUTAS ABSOLUTAS
+print("Entrenando el Pipeline integrado final...")
+pipeline_produccion.fit(X_crudo_full, y_crudo_full)
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+MODEL_PATH = os.path.join(BASE_DIR, "..", "models", "model.pkl")
+os.makedirs(os.path.dirname(MODEL_PATH), exist_ok=True)
+
+with open(MODEL_PATH, "wb") as f:
+    print(f"Columnas detectadas por el pipeline: {pipeline_produccion.named_steps['preprocessor'].feature_names_in_}")
+    pickle.dump(pipeline_produccion, f)
+
+print(f"\n¡Pipeline de producción exportado con éxito en:\n'{MODEL_PATH}'!")
