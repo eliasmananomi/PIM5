@@ -156,3 +156,18 @@ Al observar el mapa de calor generado (matriz_correlacion_multicolinealidad.png)
     salario_cliente con total_otros_prestamos.
     Los distintos tipos de saldos entre sí (saldo_total y saldo_principal).
 
+## Despliegue y Containerización
+
+El proyecto ha sido containerizado utilizando Docker para garantizar la reproducibilidad del entorno en cualquier sistema.Creé un Dockerfile basado en python:3.10-slim para optimizar el tamaño de la imagen y asegurar la compatibilidad con las librerías modernas de Data Science.
+
+También apliqué gestión de dependencias realizando una depuración exhaustiva del archivo requirements.txt, eliminando dependencias innecesarias de desarrollo para asegurar una instalación limpia y estable en el contenedor.
+
+La API, construida con FastAPI, se sirve a través de Uvicorn, configurado para ejecutarse dentro del contenedor exponiendo el puerto 8000.
+
+Instrucciones de Ejecución:
+
+Construir la imagen: docker build -t api-prediccion .
+
+Ejecutar el contenedor: docker run -p 8000:8000 api-prediccion
+
+Acceder a la documentación interactiva (Swagger) en: http://127.0.0.1:8000/docs
